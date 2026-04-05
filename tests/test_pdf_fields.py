@@ -19,7 +19,7 @@ def _field_map(reader: PdfReader) -> dict[str, object]:
 
 
 def test_generated_pdf_contains_editable_fields_and_signature(tmp_path: Path) -> None:
-    contract = load_contract_from_yaml(Path("contract_generator/templates/model_release.yml"))
+    contract = load_contract_from_yaml(Path("examples/model_release.yml"))
     output = tmp_path / "model-release.pdf"
 
     generate_contract_pdf(contract, output)
@@ -30,6 +30,8 @@ def test_generated_pdf_contains_editable_fields_and_signature(tmp_path: Path) ->
     assert "subject_name" in fields
     assert "project_name" in fields
     assert "effective_date" in fields
-    assert "usage_scope" in fields
+    assert "location" in fields
+    assert "email" in fields
+    assert "usage_scope" not in fields
     assert "subject_signature" in fields
     assert fields["subject_signature"].get("/FT") == "/Sig"

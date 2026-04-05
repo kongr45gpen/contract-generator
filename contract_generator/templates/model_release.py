@@ -1,56 +1,90 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date
-from html import escape
 
-from jinja2 import Template
+from pydantic import BaseModel, ConfigDict, Field
 
-from contract_generator.schema import ModelReleaseContract
-
-
-@dataclass(frozen=True)
-class FieldSpec:
-    key: str
-    label: str
-    span: int = 1
+from contract_generator.template_support.types import Clause, InlineField
 
 
-FIELD_SPECS: list[FieldSpec] = [
-    FieldSpec("subject_name", "Release Subject"),
-    FieldSpec("company_name", "Releasee / Company"),
-    FieldSpec("project_name", "Project Name"),
-    FieldSpec("effective_date", "Effective Date"),
-    FieldSpec("location", "Location"),
-    FieldSpec("email", "Email"),
-    FieldSpec("consideration", "Consideration"),
-    FieldSpec("governing_law", "Governing Law"),
-    FieldSpec("usage_scope", "Usage Scope", span=2),
-]
+class Parameters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
-MODEL_RELEASE_BODY = Template(
-    """
-    <b>Release Grant.</b> I, {{ subject_name }}, grant {{ company_name }} permission to use my name, likeness, voice, image, and any related materials in connection with {{ project_name }}.
-    <br/><br/>
-    <b>Scope.</b> The permitted use includes {{ usage_scope }}.
-    <br/><br/>
-    <b>Terms.</b> This release is effective on {{ effective_date }} in {{ location }}. Consideration: {{ consideration }}. Governing law: {{ governing_law }}.
-    {% if notes %}
-    <br/><br/>
-    <b>Notes.</b> {{ notes }}
-    {% endif %}
-    """.strip()
+    document_title: str = Field(default="Model Release Form", min_length=1)
+    subject_name: str = Field(min_length=1)
+    project_name: str = Field(min_length=1)
+    effective_date: date
+    location: str = Field(min_length=1)
+    company_name: str = Field(default="Production Company", min_length=1)
+    email: str | None = None
+    usage_scope: str = Field(default="All media, worldwide, in perpetuity", min_length=1)
+    consideration: str = Field(default="Included in project fee", min_length=1)
+    governing_law: str = Field(default="California", min_length=1)
+    notes: str | None = None
+
+
+TEMPLATE_NAME = "model_release"
+TEMPLATE_DESCRIPTION = "Model Release Form"
+PARAMETERS_MODEL = Parameters
+
+EDITABLE_SUBJECT_NAME = InlineField("subject_name", "Release Subject", 116)
+EDITABLE_PROJECT_NAME = InlineField("project_name", "Project Name", 122)
+EDITABLE_EFFECTIVE_DATE = InlineField("effective_date", "Effective Date", 48)
+EDITABLE_LOCATION = InlineField("location", "Location", 108)
+EDITABLE_EMAIL = InlineField("email", "Email", 136)
+
+
+INLINE_EDITABLE_FIELDS: tuple[InlineField, ...] = (
+    EDITABLE_SUBJECT_NAME,
+    EDITABLE_PROJECT_NAME,
+    EDITABLE_EFFECTIVE_DATE,
+    EDITABLE_LOCATION,
+    EDITABLE_EMAIL,
 )
 
 
-def _format_value(value: object) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, date):
-        return value.isoformat()
-    return escape(str(value))
+def build_clauses(contract: Parameters) -> tuple[Clause, ...]:
+    return (
+        Clause(
+            "Release Grant",
+            (
+                "I, ",
+                EDITABLE_SUBJECT_NAME,
+                f", grant {contract.company_name} permission to use my name, likeness, voice, image, and related materials in connection with ",
+                EDITABLE_PROJECT_NAME,
+                ".",
+            ),
+        ),
+        Clause(
+            "Scope",
+            (
+                "Permitted use includes ",
+                f"{contract.usage_scope}",
+                ".",
+            ),
+        ),
+        Clause(
+            "Terms",
+            (
+                "This release is effective on ",
+                EDITABLE_EFFECTIVE_DATE,
+                " in ",
+                EDITABLE_LOCATION,
+                f". Consideration: {contract.consideration}. Governing law: {contract.governing_law}.",
+            ),
+        ),
+        Clause(
+            "Contact",
+            (
+                "The subject can be reached at ",
+                EDITABLE_EMAIL,
+                ".",
+            ),
+        ),
+    )
 
 
-def render_model_release_body(contract: ModelReleaseContract) -> str:
-    context = {field: _format_value(value) for field, value in contract.model_dump().items()}
-    return MODEL_RELEASE_BODY.render(**context)
+def notes_line(contract: Parameters) -> str | None:
+    if not contract.notes:
+        return None
+    return f"Notes: {contract.notes}"
