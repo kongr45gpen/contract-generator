@@ -31,8 +31,6 @@ PARAMETERS_MODEL = Parameters
 
 EDITABLE_PARTY_NAME = InlineField("party_name", "Releasor", 116)
 
-# EDITABLE_EMAIL = InlineEditableField("email", "Email", 136)
-
 
 INLINE_EDITABLE_FIELDS: tuple[InlineField, ...] = (
     EDITABLE_PARTY_NAME,

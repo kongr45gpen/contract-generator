@@ -26,9 +26,6 @@ def _discover_templates() -> dict[str, TemplateDefinition]:
     templates_package = importlib.import_module("contract_generator.templates")
 
     for module_info in pkgutil.iter_modules(templates_package.__path__):
-        if module_info.name == "__init__":
-            continue
-
         module = importlib.import_module(f"contract_generator.templates.{module_info.name}")
         required_attributes = (
             "TEMPLATE_NAME",
